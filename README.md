@@ -21,7 +21,6 @@ StrategiXAgent is an AI-powered assistant designed to help commercial teams moni
 
 - **ClinicalTrials.gov API Endpoint**  
   `https://clinicaltrials.gov/api/v2/studies`  
-  *(Official API endpoint for fetching clinical trial data)*
 
 ### 🎥 Background Videos  
 - **Project Concept Overview**  
