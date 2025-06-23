@@ -1,0 +1,132 @@
+### Goal: Automate collecting recent clinical trials for a disease area
+
+How : 1. Retrieve JSON data from ClinicalTrials.gov 2. Extract only relevant information ( ID, Title, Condition) 3. Send this to Gemini with a clear prompt 4. Gemini replies with a clean business-friendly summary
+
+Next step : Loop for multiple conditions, or plug into a simple dashborad (visualization)
+
+# Load Required libraries
+
+```{r}
+library(httr)
+library(jsonlite)
+```
+
+# 1. Set API URL for ClinicalTrials.gov
+
+```{r}
+url_ct <- "https://clinicaltrials.gov/api/v2/studies"
+```
+
+# 2. Make a GET request to fetch trial data
+
+```{r}
+res_ct <- GET(url_ct, query = list(query.cond = "diabetes", pageSize = 3))
+```
+
+# 3. Extract the JSON response
+
+```{r}
+# As text 
+json_ct <- content(res_ct, as = "text", encoding = "UTF-8")
+# Parsed list 
+data_ct <- content(res_ct, as = "parsed")
+```
+
+# 4. Extract the 'Studies' List from the response
+
+```{r}
+studies <- data_ct$studies
+```
+
+# 5. Build a clean text block to send to Gemini
+
+```{r}
+text_for_gemini <- ""
+
+for (i in 1:length(studies)) {
+  ps <- studies[[i]]$protocolSection
+  id <- ps$identificationModule$nctId
+  title <- ps$identificationModule$officialTitle
+  cond <- ps$conditionModule$conditionList
+  
+  # if no condition is provided, write "Not specified"
+  if (is.null(cond) || length(cond) == 0) {
+    cond <- "Not specified"
+  } else {
+    cond <- paste(cond, collapse = ", ")
+  }
+
+  text_for_gemini <- paste0(
+    text_for_gemini,
+    "Trial ", i, ":\n",
+    " - ID: ", id, "\n",
+    " - Title: ", title, "\n",
+    " - Condition: ", cond, "\n\n"
+  )
+}
+
+cat("== Text to send to Gemini ==\n")
+cat(text_for_gemini)
+
+
+```
+
+# 6. Prepare request to Gemini API
+
+```{r}
+# Gemini API Key
+api_key <- "AIzaSyBvvZea3Tli0yBUYHvI7QrzKMJu662fsfA" 
+
+# Gemini URL
+url_gemini <- paste0(
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=",
+  api_key
+)
+
+# Define the prompt for Gemini to summarized the trials 
+body <- list(
+  contents = list(
+    list(
+      parts = list(
+        list(text = paste(
+          "You are a competitive intelligence assistant.",
+  "Your job is to read the following list of clinical trial entries and write a short summary in 1-2 paragraphs.",
+  "Focus on disease area, study phases, and key points that a commercial team would care about.",
+  "Use clear language. Do not list everything. Do not repeat the raw data. Write like a short news paragraph.\n\n",
+          text_for_gemini
+        ))
+      )
+    )
+  )
+)
+
+# Convert to Json
+json_body <- toJSON(body, auto_unbox = TRUE)
+```
+
+# 7. Send
+
+```{r}
+response <- POST(
+  url = url_gemini,
+  add_headers("Content-Type" = "application/json"),
+  body = json_body
+)
+
+```
+
+# 8. Extract the raw text response
+
+```{r}
+raw_text <- content(response, as = "text", encoding = "UTF-8")
+parsed_raw <- parse_json(raw_text, simplifyVector = FALSE)
+```
+
+# 9. Extract the final summary text
+
+```{r}
+summary_text <- parsed_raw$candidates[[1]]$content$parts[[1]]$text
+cat("\n== Genimi Summary ==\n\n")
+cat(summary_text)
+
+```
