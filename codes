@@ -75,7 +75,7 @@ cat(text_for_gemini)
 
 ```{r}
 # Gemini API Key
-api_key <- "AIzaSyBvvZea3Tli0yBUYHvI7QrzKMJu662fsfA" 
+api_key <- "type your API key " 
 
 # Gemini URL
 url_gemini <- paste0(
